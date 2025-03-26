@@ -1,3 +1,17 @@
+*&---------------------------------------------------------------------*
+*& Class zcl_taler_inv_mgmt
+*&---------------------------------------------------------------------*
+*& Get json structure like
+*& { "product_id":"TALER_BOTTLE01",
+*& "description":"Taler Branded Water Bottle",
+*& "unit":"ST",
+*& "price":"EUR:45.00",
+*& "total_stock":1000 }
+*& from SAP material by material n number, plant and storage location.
+*& Make POST request to Taler backend and output response code
+*&---------------------------------------------------------------------*
+
+
 CLASS zcl_taler_inv_mgmt DEFINITION
   PUBLIC
   FINAL
