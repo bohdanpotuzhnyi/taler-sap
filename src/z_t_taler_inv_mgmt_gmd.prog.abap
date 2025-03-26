@@ -12,17 +12,13 @@ PARAMETERS: p_matnr TYPE char18 DEFAULT 'TALER_BOTTLE01',
 START-OF-SELECTION.
 
   DATA(lo_inv_mgmt) = NEW zcl_taler_inv_mgmt( ).
-  DATA: lv_price    TYPE p,
-        lv_currency TYPE waers,
-        lv_stock    TYPE labst.
+  DATA lv_json TYPE string.
 
-  lo_inv_mgmt->get_material_data(
-    EXPORTING
-      p_matnr     = p_matnr
-      p_plant     = p_plant
-      p_lgort     = p_lgort
-    IMPORTING
-      ev_price    = lv_price
-      ev_currency = lv_currency
-      ev_stock    = lv_stock
-  ).
+lv_json = lo_inv_mgmt->get_material_data(
+  EXPORTING
+    p_matnr = p_matnr
+    p_plant = p_plant
+    p_lgort = p_lgort ).
+
+
+    WRITE: / lv_json.
