@@ -57,16 +57,20 @@ CLASS zcl_taler_inv_mgmt IMPLEMENTATION.
            END OF ty_material_info.
 
     DATA: lv_material_general_data TYPE bapimatdoa,
-          lv_return TYPE bapireturn,
-          ls_mbew TYPE mbew,
-          ls_t001k TYPE t001k,
-          ls_t001 TYPE t001,
-          ls_mard TYPE mard,
-          rs_info                  TYPE ty_material_info,
-          ls_json_ready            TYPE ty_custom_json,
-          lv_price_str             TYPE string,
-          lv_stock_int             TYPE i,
-          lv_json                  TYPE string.
+          lv_return     TYPE bapireturn,
+          "ls_mbew      TYPE mbew,
+          lv_price_raw  TYPE mbew-stprs,
+          "ls_t001k     TYPE t001k,
+          lv_bukrs      TYPE t001k-bukrs,
+          "ls_t001 TYPE t001,
+          lv_currency   TYPE t001-waers,
+          "ls_mard      TYPE mard,
+          lv_stock      TYPE mard-labst,
+          rs_info       TYPE ty_material_info,
+          ls_json_ready TYPE ty_custom_json,
+          lv_price_str  TYPE string,
+          lv_stock_int  TYPE i,
+          lv_json       TYPE string.
 
     CLEAR: rs_info.
 
@@ -91,43 +95,43 @@ CLASS zcl_taler_inv_mgmt IMPLEMENTATION.
 
 
     "Get standart price from MBEW
-    SELECT SINGLE * INTO ls_mbew
+    SELECT SINGLE stprs INTO lv_price_raw
       FROM mbew
       WHERE matnr = p_matnr
         AND bwkey = p_plant.
 
     IF sy-subrc = 0.
-      rs_info-price = ls_mbew-stprs.
+      rs_info-price = lv_price_raw.
     ENDIF.
 
 
 
     " Get currency via T001K and T001
-    SELECT SINGLE * INTO ls_t001k
+    SELECT SINGLE bukrs INTO lv_bukrs
       FROM t001k
       WHERE bwkey = p_plant.
 
     IF sy-subrc = 0.
-      SELECT SINGLE * INTO ls_t001
+      SELECT SINGLE waers INTO lv_currency
         FROM t001
-        WHERE bukrs = ls_t001k-bukrs.
+        WHERE bukrs = lv_bukrs.
 
       IF sy-subrc = 0.
-        rs_info-currency = ls_t001-waers.
+        rs_info-currency = lv_currency.
       ENDIF.
     ENDIF.
 
 
 
     " Get stock from MARD
-    SELECT SINGLE * INTO ls_mard
+    SELECT SINGLE labst INTO lv_stock
         FROM mard
         WHERE matnr = p_matnr
           AND werks = p_plant
           AND lgort = p_lgort.
 
     IF sy-subrc = 0.
-      rs_info-stock = ls_mard-labst.
+      rs_info-stock = lv_stock.
     ENDIF.
 
     " Format output
