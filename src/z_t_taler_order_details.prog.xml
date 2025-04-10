@@ -3,7 +3,7 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <PROGDIR>
-    <NAME>ZGET_MATERIAL_DESCRIPTION</NAME>
+    <NAME>Z_T_TALER_ORDER_DETAILS</NAME>
     <DBAPL>S</DBAPL>
     <SUBC>1</SUBC>
     <FIXPT>X</FIXPT>
@@ -13,8 +13,8 @@
    <TPOOL>
     <item>
      <ID>R</ID>
-     <ENTRY>Test to get material description</ENTRY>
-     <LENGTH>32</LENGTH>
+     <ENTRY>get order info from sap</ENTRY>
+     <LENGTH>23</LENGTH>
     </item>
    </TPOOL>
   </asx:values>

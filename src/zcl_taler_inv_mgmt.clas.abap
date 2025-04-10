@@ -168,7 +168,7 @@ CLASS zcl_taler_inv_mgmt IMPLEMENTATION.
 
 
     " POST REQUEST TO TALER
-    DATA: lv_url        TYPE string VALUE 'https://tutorial.talerintosap.us/private/products',
+    DATA: lv_url        TYPE string VALUE 'https://backoffice.talerintosap.us/private/products',
       lv_token      TYPE string VALUE 'secret-token:TALERintoSAP2527',
       lv_auth_hdr   TYPE string,
       lo_http_client TYPE REF TO if_http_client,
