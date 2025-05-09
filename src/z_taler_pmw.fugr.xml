@@ -1,0 +1,81 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<abapGit version="v1.0.0" serializer="LCL_OBJECT_FUGR" serializer_version="v1.0.0">
+ <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+   <AREAT>Taler PMW</AREAT>
+   <INCLUDES>
+    <SOBJ_NAME>LZ_TALER_PMWTOP</SOBJ_NAME>
+    <SOBJ_NAME>SAPLZ_TALER_PMW</SOBJ_NAME>
+   </INCLUDES>
+   <FUNCTIONS>
+    <item>
+     <FUNCNAME>Z_TALER_EVENT30_HANDLER</FUNCNAME>
+     <SHORT_TEXT>Event 30 handler for Taler PMW integration</SHORT_TEXT>
+     <IMPORT>
+      <RSIMP>
+       <PARAMETER>I_EVENT</PARAMETER>
+       <TYP>CHAR2</TYP>
+      </RSIMP>
+      <RSIMP>
+       <PARAMETER>I_FORMAT</PARAMETER>
+       <TYP>CHAR10</TYP>
+      </RSIMP>
+      <RSIMP>
+       <PARAMETER>I_PAYH</PARAMETER>
+       <REFERENCE>X</REFERENCE>
+       <TYP>FPAYH</TYP>
+      </RSIMP>
+      <RSIMP>
+       <PARAMETER>I_PAYHX</PARAMETER>
+       <REFERENCE>X</REFERENCE>
+       <TYP>FPAYHX</TYP>
+      </RSIMP>
+      <RSIMP>
+       <PARAMETER>I_PAYP</PARAMETER>
+       <REFERENCE>X</REFERENCE>
+       <TYP>FPAYP</TYP>
+      </RSIMP>
+     </IMPORT>
+     <EXPORT>
+      <RSEXP>
+       <PARAMETER>E_RECORD</PARAMETER>
+       <REFERENCE>X</REFERENCE>
+       <TYP>STRING</TYP>
+      </RSEXP>
+     </EXPORT>
+     <DOCUMENTATION>
+      <RSFDO>
+       <PARAMETER>I_EVENT</PARAMETER>
+       <KIND>P</KIND>
+       <STEXT>Component of the Version Number</STEXT>
+      </RSFDO>
+      <RSFDO>
+       <PARAMETER>I_FORMAT</PARAMETER>
+       <KIND>P</KIND>
+       <STEXT>Character Field with Length 10</STEXT>
+      </RSFDO>
+      <RSFDO>
+       <PARAMETER>I_PAYH</PARAMETER>
+       <KIND>P</KIND>
+       <STEXT>Payment medium: Payment data</STEXT>
+      </RSFDO>
+      <RSFDO>
+       <PARAMETER>I_PAYHX</PARAMETER>
+       <KIND>P</KIND>
+       <STEXT>Payment Medium: Prepared Data for Payment</STEXT>
+      </RSFDO>
+      <RSFDO>
+       <PARAMETER>I_PAYP</PARAMETER>
+       <KIND>P</KIND>
+       <STEXT>Payment medium: Data on paid items</STEXT>
+      </RSFDO>
+      <RSFDO>
+       <PARAMETER>E_RECORD</PARAMETER>
+       <KIND>P</KIND>
+      </RSFDO>
+     </DOCUMENTATION>
+    </item>
+   </FUNCTIONS>
+  </asx:values>
+ </asx:abap>
+</abapGit>

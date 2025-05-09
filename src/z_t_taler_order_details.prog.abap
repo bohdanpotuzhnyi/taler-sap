@@ -19,4 +19,4 @@ START-OF-SELECTION.
   DATA(lv_response) = lo_reader->send_order_to_taler( iv_sales_order = p_order ).
 
   WRITE: / 'API Response:'.
-  WRITE: / lv_response.
+  WRITE: / lv_response-content.

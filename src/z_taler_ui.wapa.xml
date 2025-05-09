@@ -1,0 +1,204 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<abapGit version="v1.0.0" serializer="LCL_OBJECT_WAPA" serializer_version="v1.0.0">
+ <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+   <ATTRIBUTES>
+    <APPLNAME>Z_TALER_UI</APPLNAME>
+    <APPLEXT>Z_TALER_UI</APPLEXT>
+    <SECURITY>X</SECURITY>
+    <ORIGLANG>E</ORIGLANG>
+    <MODIFLANG>E</MODIFLANG>
+    <TEXT>Taler SAP UI App</TEXT>
+   </ATTRIBUTES>
+   <PAGES>
+    <item>
+     <ATTRIBUTES>
+      <APPLNAME>Z_TALER_UI</APPLNAME>
+      <PAGEKEY>INVENTORY.HTM</PAGEKEY>
+      <PAGENAME>inventory.htm</PAGENAME>
+      <MIMETYPE>text/html</MIMETYPE>
+      <LAYOUTLANGU>E</LAYOUTLANGU>
+      <VERSION>A</VERSION>
+      <LANGU>E</LANGU>
+     </ATTRIBUTES>
+    </item>
+    <item>
+     <ATTRIBUTES>
+      <APPLNAME>Z_TALER_UI</APPLNAME>
+      <PAGEKEY>MAIN.HTM</PAGEKEY>
+      <PAGENAME>main.htm</PAGENAME>
+      <MIMETYPE>text/html</MIMETYPE>
+      <IS_START_PAGE>X</IS_START_PAGE>
+      <LAYOUTLANGU>E</LAYOUTLANGU>
+      <VERSION>A</VERSION>
+      <LANGU>E</LANGU>
+     </ATTRIBUTES>
+    </item>
+    <item>
+     <ATTRIBUTES>
+      <APPLNAME>Z_TALER_UI</APPLNAME>
+      <PAGEKEY>NOTIFICATIONS.HTM</PAGEKEY>
+      <PAGENAME>notifications.htm</PAGENAME>
+      <MIMETYPE>text/html</MIMETYPE>
+      <LAYOUTLANGU>E</LAYOUTLANGU>
+      <VERSION>A</VERSION>
+      <LANGU>E</LANGU>
+     </ATTRIBUTES>
+    </item>
+    <item>
+     <ATTRIBUTES>
+      <APPLNAME>Z_TALER_UI</APPLNAME>
+      <PAGEKEY>ORDERS.HTM</PAGEKEY>
+      <PAGENAME>orders.htm</PAGENAME>
+      <MIMETYPE>text/html</MIMETYPE>
+      <LAYOUTLANGU>E</LAYOUTLANGU>
+      <VERSION>A</VERSION>
+      <LANGU>E</LANGU>
+     </ATTRIBUTES>
+     <EVENT_HANDLERS>
+      <O2PAGEVHS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>ORDERS.HTM</PAGEKEY>
+       <EVHANDLER>ONCREATE</EVHANDLER>
+       <VERSION>A</VERSION>
+       <EVHNAME>OnCreate</EVHNAME>
+       <SOURCE>
+        <item>* this handler is called once the page is first created (stateful mode)</item>
+        <item>* it performs a once-off data initialization or object creation</item>
+        <item/>
+        <item>popup_visible = abap_false.</item>
+       </SOURCE>
+      </O2PAGEVHS>
+      <O2PAGEVHS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>ORDERS.HTM</PAGEKEY>
+       <EVHANDLER>ONINITIALIZATION</EVHANDLER>
+       <VERSION>A</VERSION>
+       <EVHNAME>OnInitialization</EVHNAME>
+       <SOURCE>
+        <item>* event handler for data retrieval</item>
+        <item/>
+        <item>* TODO: ADD call to update the function from the taler-order-cls</item>
+        <item/>
+        <item>DATA(lo_order_handler) = NEW zcl_taler_order( ).</item>
+        <item/>
+        <item>CALL METHOD lo_order_handler-&gt;update_taler_billing_docs( ).</item>
+        <item/>
+        <item>SELECT * INTO TABLE lt_filtered FROM ztlr_order_log.</item>
+       </SOURCE>
+      </O2PAGEVHS>
+      <O2PAGEVHS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>ORDERS.HTM</PAGEKEY>
+       <EVHANDLER>ONINPUTPROCESSING</EVHANDLER>
+       <VERSION>A</VERSION>
+       <EVHNAME>OnInputProcessing</EVHNAME>
+       <SOURCE>
+        <item>* event handler for checking and processing user input and</item>
+        <item>* for defining navigation</item>
+        <item/>
+        <item>CLASS cl_htmlb_manager DEFINITION LOAD.</item>
+        <item>DATA: event TYPE REF TO if_htmlb_data.</item>
+        <item/>
+        <item>event = cl_htmlb_manager=&gt;get_event_ex( request ).</item>
+        <item>IF event IS BOUND AND event-&gt;event_name = &apos;button&apos; AND event-&gt;event_server_name = &apos;showPopup&apos;.</item>
+        <item>  popup_visible = abap_true.</item>
+        <item>ENDIF.</item>
+        <item/>
+       </SOURCE>
+      </O2PAGEVHS>
+     </EVENT_HANDLERS>
+     <PARAMETERS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>ORDERS.HTM</PAGEKEY>
+       <COMPNAME>LT_FILTERED</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>TY_TALER_LOG_TAB</TYPE>
+       <ALIASNAME>lt_filtered</ALIASNAME>
+       <TEXT>Taler Billing Doc Table</TEXT>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>ORDERS.HTM</PAGEKEY>
+       <COMPNAME>POPUP_VISIBLE</COMPNAME>
+       <VERSION>A</VERSION>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>ABAP_BOOL</TYPE>
+       <ALIASNAME>popup_visible</ALIASNAME>
+       <TEXT>Boolean Variable (X = True, - = False, Space = Unknown)</TEXT>
+      </O2PAGPARS>
+     </PARAMETERS>
+     <TYPES>
+      <item>TYPES: ty_taler_log_tab TYPE STANDARD TABLE OF ztlr_order_log WITH DEFAULT KEY.</item>
+     </TYPES>
+    </item>
+    <item>
+     <ATTRIBUTES>
+      <APPLNAME>Z_TALER_UI</APPLNAME>
+      <PAGEKEY>SETTINGS.HTM</PAGEKEY>
+      <PAGENAME>settings.htm</PAGENAME>
+      <MIMETYPE>text/html</MIMETYPE>
+      <LAYOUTLANGU>E</LAYOUTLANGU>
+      <VERSION>A</VERSION>
+      <LANGU>E</LANGU>
+     </ATTRIBUTES>
+    </item>
+    <item>
+     <ATTRIBUTES>
+      <APPLNAME>Z_TALER_UI</APPLNAME>
+      <PAGEKEY>SIDEBAR.HTM</PAGEKEY>
+      <PAGENAME>sidebar.htm</PAGENAME>
+      <PAGETYPE>X</PAGETYPE>
+      <LAYOUTLANGU>E</LAYOUTLANGU>
+      <VERSION>A</VERSION>
+      <LANGU>E</LANGU>
+      <DESCRIPT>sidebar for all pages</DESCRIPT>
+     </ATTRIBUTES>
+    </item>
+    <item>
+     <ATTRIBUTES>
+      <APPLNAME>Z_TALER_UI</APPLNAME>
+      <PAGEKEY>TRANSACTIONS.HTM</PAGEKEY>
+      <PAGENAME>transactions.htm</PAGENAME>
+      <MIMETYPE>text/html</MIMETYPE>
+      <LAYOUTLANGU>E</LAYOUTLANGU>
+      <VERSION>A</VERSION>
+      <LANGU>E</LANGU>
+     </ATTRIBUTES>
+     <EVENT_HANDLERS>
+      <O2PAGEVHS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>TRANSACTIONS.HTM</PAGEKEY>
+       <EVHANDLER>ONINITIALIZATION</EVHANDLER>
+       <VERSION>A</VERSION>
+       <EVHNAME>OnInitialization</EVHNAME>
+       <SOURCE>
+        <item>* event handler for data retrieval</item>
+        <item/>
+        <item>SELECT * INTO TABLE lt_filtered FROM ztlr_order_hstat.</item>
+       </SOURCE>
+      </O2PAGEVHS>
+     </EVENT_HANDLERS>
+     <PARAMETERS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>TRANSACTIONS.HTM</PAGEKEY>
+       <COMPNAME>LT_FILTERED</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>TY_TALER_HSTAT_TAB</TYPE>
+       <ALIASNAME>lt_filtered</ALIASNAME>
+      </O2PAGPARS>
+     </PARAMETERS>
+     <TYPES>
+      <item>TYPES: ty_taler_hstat_tab TYPE STANDARD TABLE OF ztlr_order_hstat WITH DEFAULT KEY.</item>
+     </TYPES>
+    </item>
+   </PAGES>
+  </asx:values>
+ </asx:abap>
+</abapGit>
