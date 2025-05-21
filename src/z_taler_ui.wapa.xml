@@ -84,7 +84,9 @@
         <item/>
         <item>CALL METHOD lo_order_handler-&gt;update_taler_billing_docs( ).</item>
         <item/>
-        <item>SELECT * INTO TABLE lt_filtered FROM ztlr_order_log.</item>
+        <item>SELECT * INTO TABLE lt_filtered</item>
+        <item>         FROM ztlr_order_log</item>
+        <item>         ORDER BY BILLING_DOC DESCENDING.</item>
        </SOURCE>
       </O2PAGEVHS>
       <O2PAGEVHS>
@@ -145,6 +147,118 @@
       <VERSION>A</VERSION>
       <LANGU>E</LANGU>
      </ATTRIBUTES>
+     <EVENT_HANDLERS>
+      <O2PAGEVHS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>SETTINGS.HTM</PAGEKEY>
+       <EVHANDLER>ONINITIALIZATION</EVHANDLER>
+       <VERSION>A</VERSION>
+       <EVHNAME>OnInitialization</EVHNAME>
+       <SOURCE>
+        <item>* event handler for data retrieval</item>
+        <item>SELECT SINGLE *</item>
+        <item>  INTO @ls_config</item>
+        <item>  FROM ztlr_config</item>
+        <item>  WHERE last_changed_on = (</item>
+        <item>    SELECT MAX( last_changed_on )</item>
+        <item>      FROM ztlr_config</item>
+        <item>  ).</item>
+        <item/>
+        <item>me-&gt;zconfig = ls_config.</item>
+        <item/>
+       </SOURCE>
+      </O2PAGEVHS>
+      <O2PAGEVHS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>SETTINGS.HTM</PAGEKEY>
+       <EVHANDLER>ONINPUTPROCESSING</EVHANDLER>
+       <VERSION>A</VERSION>
+       <EVHNAME>OnInputProcessing</EVHNAME>
+       <SOURCE>
+        <item>* event handler for checking and processing user input and</item>
+        <item>* for defining navigation</item>
+        <item/>
+        <item>DATA: lt_config TYPE STANDARD TABLE OF ztlr_config,</item>
+        <item>      ls_config TYPE ztlr_config,</item>
+        <item>      lv_timestamp TYPE string,</item>
+        <item>      ev TYPE REF TO if_htmlb_data.</item>
+        <item/>
+        <item>ev = cl_htmlb_manager=&gt;get_event_ex( request ).</item>
+        <item/>
+        <item>IF ev IS NOT INITIAL</item>
+        <item>  AND ev-&gt;event_name = htmlb_events=&gt;button</item>
+        <item>  AND ev-&gt;event_server_name = &apos;onSaveSettings&apos;.</item>
+        <item/>
+        <item>* Always generate a new unique conf_id</item>
+        <item>    lv_timestamp = |{ sy-datum }_{ sy-uzeit }|.</item>
+        <item>    REPLACE ALL OCCURRENCES OF &apos;:&apos; IN lv_timestamp WITH &apos;&apos;.</item>
+        <item>    ls_config-conf_id = |{ sy-uname }_{ lv_timestamp }|.</item>
+        <item/>
+        <item>* Fill config data</item>
+        <item>    ls_config-mandt           = sy-mandt.</item>
+        <item>    ls_config-taler_uri       = request-&gt;get_form_field( &apos;taler_uri&apos; ).</item>
+        <item>    ls_config-taler_username  = request-&gt;get_form_field( &apos;taler_username&apos; ).</item>
+        <item>    ls_config-taler_password  = request-&gt;get_form_field( &apos;taler_password&apos; ).</item>
+        <item>    ls_config-taler_cur_repl  = request-&gt;get_form_field( &apos;taler_cur_repl&apos; ).</item>
+        <item>    ls_config-def_prod_desc   = request-&gt;get_form_field( &apos;def_prod_desc&apos; ).</item>
+        <item>    ls_config-def_orded_desc  = request-&gt;get_form_field( &apos;def_orded_desc&apos; ).</item>
+        <item>    ls_config-sap_pay_method  = request-&gt;get_form_field( &apos;sap_pay_method&apos; ).</item>
+        <item>    ls_config-sap_country     = request-&gt;get_form_field( &apos;sap_country&apos; ).</item>
+        <item>    ls_config-sap_sales_org   = request-&gt;get_form_field( &apos;sap_sales_org&apos; ).</item>
+        <item>    ls_config-sap_plant       = request-&gt;get_form_field( &apos;sap_plant&apos; ).</item>
+        <item>    ls_config-sap_stor_loc    = request-&gt;get_form_field( &apos;sap_stor_loc&apos; ).</item>
+        <item/>
+        <item>* Audit fields</item>
+        <item>    GET TIME STAMP FIELD ls_config-last_changed_on.</item>
+        <item>    ls_config-last_changed_by = sy-uname.</item>
+        <item/>
+        <item>* Only insert, no update</item>
+        <item>    INSERT ztlr_config FROM ls_config.</item>
+        <item>    IF sy-subrc = 0.</item>
+        <item>      COMMIT WORK.</item>
+        <item>    ELSE.</item>
+        <item>      MESSAGE &apos;Insert failed. Check primary key constraints or data types.&apos; TYPE &apos;E&apos;.</item>
+        <item>    ENDIF.</item>
+        <item/>
+        <item>ENDIF.</item>
+       </SOURCE>
+      </O2PAGEVHS>
+     </EVENT_HANDLERS>
+     <PARAMETERS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>SETTINGS.HTM</PAGEKEY>
+       <COMPNAME>LS_CONFIG</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>ZTLR_CONFIG</TYPE>
+       <ALIASNAME>ls_config</ALIASNAME>
+       <TEXT>Taler config table</TEXT>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>SETTINGS.HTM</PAGEKEY>
+       <COMPNAME>LT_CONFIG</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>ZTLR_CONFIG</TYPE>
+       <ALIASNAME>lt_config</ALIASNAME>
+       <TEXT>Taler config table</TEXT>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>SETTINGS.HTM</PAGEKEY>
+       <COMPNAME>ZCONFIG</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>ZTLR_CONFIG</TYPE>
+       <ALIASNAME>zconfig</ALIASNAME>
+       <TEXT>Taler config table</TEXT>
+      </O2PAGPARS>
+     </PARAMETERS>
     </item>
     <item>
      <ATTRIBUTES>
@@ -156,6 +270,29 @@
       <VERSION>A</VERSION>
       <LANGU>E</LANGU>
       <DESCRIPT>sidebar for all pages</DESCRIPT>
+     </ATTRIBUTES>
+    </item>
+    <item>
+     <ATTRIBUTES>
+      <APPLNAME>Z_TALER_UI</APPLNAME>
+      <PAGEKEY>STYLES.CSS</PAGEKEY>
+      <PAGENAME>styles.css</PAGENAME>
+      <PAGETYPE>X</PAGETYPE>
+      <LAYOUTLANGU>E</LAYOUTLANGU>
+      <VERSION>A</VERSION>
+      <LANGU>E</LANGU>
+      <DESCRIPT>styles</DESCRIPT>
+     </ATTRIBUTES>
+    </item>
+    <item>
+     <ATTRIBUTES>
+      <APPLNAME>Z_TALER_UI</APPLNAME>
+      <PAGEKEY>STYLE_EMBED.HTM</PAGEKEY>
+      <PAGENAME>style_embed.htm</PAGENAME>
+      <PAGETYPE>X</PAGETYPE>
+      <LAYOUTLANGU>E</LAYOUTLANGU>
+      <VERSION>A</VERSION>
+      <LANGU>E</LANGU>
      </ATTRIBUTES>
     </item>
     <item>
@@ -178,7 +315,9 @@
        <SOURCE>
         <item>* event handler for data retrieval</item>
         <item/>
-        <item>SELECT * INTO TABLE lt_filtered FROM ztlr_order_hstat.</item>
+        <item>SELECT * INTO TABLE lt_filtered</item>
+        <item>         FROM ztlr_order_hstat</item>
+        <item>         ORDER BY timestamp DESCENDING.</item>
        </SOURCE>
       </O2PAGEVHS>
      </EVENT_HANDLERS>

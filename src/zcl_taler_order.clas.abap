@@ -7,6 +7,7 @@ CLASS zcl_taler_order DEFINITION
     DATA: summary TYPE string VALUE 'Order from SAP'.
     TYPES: BEGIN OF ty_product_list,
              product_id TYPE matnr,
+             product_description TYPE maktx,
            END OF ty_product_list,
            ty_product_list_tab TYPE STANDARD TABLE OF ty_product_list WITH EMPTY KEY.
 
@@ -66,6 +67,18 @@ CLASS zcl_taler_order DEFINITION
     METHODS post_created_orders_to_taler.
 
     METHODS update_taler_payment_uris.
+
+    METHODS check_paid_orders.
+
+    METHODS: log_http_interaction
+        IMPORTING
+            iv_billing_doc TYPE ztlr_order_log-billing_doc
+            iv_http_code   TYPE i
+            iv_response    TYPE string
+            iv_req_body    TYPE string
+            iv_req_url     TYPE string
+            iv_on_state    TYPE ztlr_order_hstat-on_state.
+
 
     " DO NOT USE UNLESS UnitedResearchF
     METHODS clear_all_taler_tables.
@@ -163,18 +176,24 @@ CLASS zcl_taler_order IMPLEMENTATION.
           lv_product    TYPE string,
           rv_line       TYPE string.
 
-    " TODO: Terminate the usage of this function, and use only the taler tables 2 calls might be needed:
-    " 1) ZTLR_ORDER_LOG to get the basic info, such as amount, currency,
-    " 2) ZTLR_ORDER_PROD to get the products
-    CALL METHOD me->get_sales_order_info
-      EXPORTING
-        iv_sales_order = iv_sales_order
-      IMPORTING
-        ev_amount      = lv_amount
-        ev_currency    = lv_currency
-        et_product_ids = lt_products.
+    " 1) Read basic info from ZTLR_ORDER_LOG
+    SELECT SINGLE amount, currency
+        INTO (@lv_amount, @lv_currency)
+        FROM ztlr_order_log
+        WHERE billing_doc = @iv_billing_doc.
 
+    IF sy-subrc <> 0 OR lv_amount IS INITIAL.
+        rv_json = '{"error": "Order not found or empty."}'.
+        RETURN.
+    ENDIF.
 
+    " 2) Read product list from ZTLR_ORDER_PROD
+    " TODO: Low Priority
+    " Could be updated, when Taler properly supports the quantity, to also fetch quantity
+    SELECT material_number, material_desc
+        INTO TABLE @lt_products
+        FROM ztlr_order_prod
+    WHERE sales_order = @iv_sales_order.
 
     IF lv_amount IS INITIAL.
       rv_json = '{"error": "Order not found or empty."}'.
@@ -183,7 +202,7 @@ CLASS zcl_taler_order IMPLEMENTATION.
 
     " Build product JSON array
     LOOP AT lt_products INTO DATA(ls_product).
-      lv_product = '{ "product_id": "' && ls_product-product_id && '" }'.
+      lv_product = '{ "product_id": "' && ls_product-product_id && '", "description":"' && ls_product-product_description && '" }'.
       APPEND lv_product TO lt_json_products.
     ENDLOOP.
 
@@ -197,8 +216,9 @@ CLASS zcl_taler_order IMPLEMENTATION.
     ENDLOOP.
 
     " Format amount
-    " TODO: GET THE AMOUNT FROM THE ORDER AND ONLY THEN REPLACE IT FOR KUDOS
-    DATA(lv_amount_str) = |KUDOS:{ lv_amount }|.
+    DATA(lv_amount_str) = |{ lv_currency }:{ lv_amount }|.
+    "TODO: REPLACE WITH CONST FROM SETTINGS TABLE IF SET"
+    REPLACE lv_currency IN lv_amount_str WITH 'KUDOS'.
 
     " Final JSON
    rv_json = '{"order": {' &&
@@ -375,9 +395,25 @@ METHOD insert_order_to_taler_tables.
   " Loop over items and insert into ZTLR_ORDER_PROD
   LOOP AT it_items INTO DATA(ls_item).
 
+    " TODO: Low Priority
+    " Maybe we would like to fetch the description_i18n here too...
+    " Try to get the description from MAKT
+    DATA(lv_maktx) = ||.
+    SELECT SINGLE maktx
+        INTO @lv_maktx
+        FROM makt
+        WHERE matnr = @ls_item-matnr
+            AND spras = @sy-langu.
+
+    " If no description found, use fallback
+    IF lv_maktx IS INITIAL.
+        lv_maktx = |{ ls_item-matnr }: product from SAP|.
+    ENDIF.
+
     CLEAR ls_order_prod.
     ls_order_prod-sales_order     = ls_item-vgbel.
     ls_order_prod-material_number = ls_item-matnr.
+    ls_order_prod-material_desc   = lv_maktx.
     ls_order_prod-quantity        = ls_item-fkimg.
     ls_order_prod-units           = ls_item-meins.
 
@@ -399,19 +435,19 @@ METHOD update_taler_billing_docs.
   " Add new function for posting the order to taler and getting back the results of it
   CALL METHOD post_created_orders_to_taler.
 
-  " Check posted orders, and fetch the token to create the url of format:
-  " the body is usually next:
-  " {
-  "      "order_id": "5",
-  "      "token": "Y7W6BBKRJFR62Y5CBABX8XFMNC"
-  " }
-  " The url that we need to make is consists of next objects
-  " http://backend.talerintosap.us/orders/{billing_doc}?token={token fetched}
+  " Check posted orders, and fetch the token to create the url
   CALL METHOD update_taler_payment_uris.
 
-  " Add a new function
+  " Check that the orders have been paid
+  CALL METHOD check_paid_orders.
 
   " Add new function for updating the payment states of all orders
+
+  " TODO: Add new function to check against the paid for possibility of Taler refund
+
+  " TODO: Add checking for refund being completed
+
+  " TODO: Add reconciliation function
 
   " ...
 
@@ -436,6 +472,12 @@ METHOD clear_all_taler_tables.
   DELETE FROM ztlr_order_log.
   IF sy-subrc = 0.
     WRITE: / 'ZTLR_ORDER_LOG cleared.'.
+  ENDIF.
+
+  " Delete settings
+  DELETE FROM ztlr_config.
+  IF sy-subrc = 0.
+    WRITE: / 'ZTLR_CONFIG cleared.'.
   ENDIF.
 
   COMMIT WORK.
@@ -510,12 +552,21 @@ METHOD fetch_new_taler_billing_docs.
      AND land1 = 'DE'
      AND vkorg = 'DS00'.
 
+
   LOOP AT lt_headers INTO DATA(ls_header).
 
     " Skip if it already exists in the custom table
     IF me->check_if_order_exists( iv_billing_doc = ls_header-vbeln ) = abap_true.
       CONTINUE.
     ENDIF.
+
+    " Skip if the amount is 0
+    IF ls_header-netwr = 0.
+      CONTINUE.
+    ENDIF.
+
+    "TODO: Check if the doc is cancel billing doc
+    " then skip
 
     " Get vgbel from VBRP for the billing document
     SELECT SINGLE vgbel
@@ -589,13 +640,128 @@ METHOD post_created_orders_to_taler.
     IF 200 = lv_response-code.
         UPDATE ztlr_order_log SET error = '' WHERE billing_doc = @ls_created_order-billing_doc.
         UPDATE ztlr_order_log SET state = 'posted' WHERE billing_doc = @ls_created_order-billing_doc.
+        UPDATE ztlr_order_log SET taler_state = 'unpaid' WHERE billing_doc = @ls_created_order-billing_doc.
     ELSE.
-        " TODO: ADD INFO TO NOTIFICATION TABLE
+        " TODO: LOW PRIORITY
+        " ADD INFO TO NOTIFICATION TABLE
         UPDATE ztlr_order_log SET error = 'X' WHERE billing_doc = @ls_created_order-billing_doc.
     ENDIF.
 
   ENDLOOP.
 
 ENDMETHOD.
+
+METHOD check_paid_orders.
+
+  DATA: lt_orders       TYPE STANDARD TABLE OF ztlr_order_log WITH EMPTY KEY,
+        ls_order        TYPE ztlr_order_log,
+        lo_http_client  TYPE REF TO if_http_client,
+        lv_url          TYPE string,
+        lv_response     TYPE string,
+        lv_status       TYPE string,
+        lv_code         TYPE i.
+
+  " Get all posted_processed orders
+  SELECT * FROM ztlr_order_log
+    INTO TABLE @lt_orders
+    WHERE state = 'posted_processed'.
+
+  LOOP AT lt_orders INTO ls_order.
+
+    " Build the callback URL
+    lv_url = |https://backoffice.talerintosap.us/private/orders/{ ls_order-billing_doc }|.
+
+    " Create HTTP client
+    CALL METHOD cl_http_client=>create_by_url
+      EXPORTING url = lv_url
+      IMPORTING client = lo_http_client
+      EXCEPTIONS others = 1.
+
+    IF sy-subrc <> 0 OR lo_http_client IS INITIAL.
+      CONTINUE.
+    ENDIF.
+
+    lo_http_client->request->set_method( if_http_request=>co_request_method_get ).
+    lo_http_client->request->set_header_field( name = 'Authorization'
+                                               value = 'Bearer secret-token:TALERintoSAP2527' ).
+
+    " Send request
+    CALL METHOD lo_http_client->send
+      EXCEPTIONS others = 1.
+
+    IF sy-subrc <> 0.
+      CONTINUE.
+    ENDIF.
+
+    " Receive response
+    CALL METHOD lo_http_client->receive
+      EXCEPTIONS others = 1.
+
+    IF sy-subrc <> 0.
+      CONTINUE.
+    ENDIF.
+
+    CALL METHOD lo_http_client->response->get_status
+    IMPORTING
+      code = lv_code.
+
+    lv_response = lo_http_client->response->get_cdata( ).
+
+    " Save the info to the transaction table
+    CALL METHOD log_http_interaction
+        EXPORTING
+            iv_billing_doc = ls_order-billing_doc
+            iv_http_code   = lv_code
+            iv_response    = lv_response
+            iv_req_body    = ''
+            iv_req_url     = lv_url
+            iv_on_state    = 'check_paid'.
+
+
+    IF lv_code = 200.
+
+      " Extract the order_status using regex
+      FIND REGEX '"order_status"\s*:\s*"([^"]+)"' IN lv_response SUBMATCHES lv_status.
+
+      IF lv_status = 'claimed'.
+        UPDATE ztlr_order_log SET taler_state = 'claimed' WHERE billing_doc = @ls_order-billing_doc.
+      ENDIF.
+
+      IF lv_status = 'paid'.
+        UPDATE ztlr_order_log SET state = 'paid' WHERE billing_doc = @ls_order-billing_doc.
+        UPDATE ztlr_order_log SET taler_state = 'paid' WHERE billing_doc = @ls_order-billing_doc.
+      ENDIF.
+
+    ENDIF.
+
+  ENDLOOP.
+
+ENDMETHOD.
+
+METHOD log_http_interaction.
+
+  DATA: ls_hist        TYPE ztlr_order_hstat,
+        lv_timestamp   TYPE timestamp,
+        lv_timestamp_str TYPE string,
+        lv_unique_id   TYPE string.
+
+  GET TIME STAMP FIELD lv_timestamp.
+  lv_timestamp_str = |{ lv_timestamp TIMESTAMP = ISO }|.
+  CONCATENATE lv_timestamp_str iv_billing_doc INTO lv_unique_id SEPARATED BY '_'.
+
+  CLEAR ls_hist.
+  ls_hist-entry_id       = lv_unique_id.
+  ls_hist-billing_doc    = iv_billing_doc.
+  ls_hist-on_state       = iv_on_state.
+  ls_hist-http_code      = iv_http_code.
+  ls_hist-http_response  = iv_response.
+  ls_hist-req_body       = iv_req_body.
+  ls_hist-req_url        = iv_req_url.
+  ls_hist-timestamp      = lv_timestamp.
+
+  INSERT ztlr_order_hstat FROM @ls_hist.
+
+ENDMETHOD.
+
 
 ENDCLASS.
