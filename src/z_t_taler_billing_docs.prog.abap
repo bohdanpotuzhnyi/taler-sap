@@ -15,7 +15,7 @@ START-OF-SELECTION.
   "-- Instantiate the class
   CREATE OBJECT lo_reader.
 
-  CALL METHOD lo_reader->clear_all_taler_tables.
+  "CALL METHOD lo_reader->clear_all_taler_tables.
 
   "-- Retrieve billing headers + items
   CALL METHOD lo_reader->get_billing_docs

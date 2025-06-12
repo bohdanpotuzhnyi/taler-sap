@@ -14,6 +14,28 @@
     <item>
      <ATTRIBUTES>
       <APPLNAME>Z_TALER_UI</APPLNAME>
+      <PAGEKEY>DRAWCHART_AMOUNTS_SCRIPT.HTM</PAGEKEY>
+      <PAGENAME>drawchart_amounts_script.htm</PAGENAME>
+      <PAGETYPE>X</PAGETYPE>
+      <LAYOUTLANGU>E</LAYOUTLANGU>
+      <VERSION>A</VERSION>
+      <LANGU>E</LANGU>
+     </ATTRIBUTES>
+    </item>
+    <item>
+     <ATTRIBUTES>
+      <APPLNAME>Z_TALER_UI</APPLNAME>
+      <PAGEKEY>DRAWCHART_SCRIPT.HTM</PAGEKEY>
+      <PAGENAME>drawchart_script.htm</PAGENAME>
+      <PAGETYPE>X</PAGETYPE>
+      <LAYOUTLANGU>E</LAYOUTLANGU>
+      <VERSION>A</VERSION>
+      <LANGU>E</LANGU>
+     </ATTRIBUTES>
+    </item>
+    <item>
+     <ATTRIBUTES>
+      <APPLNAME>Z_TALER_UI</APPLNAME>
       <PAGEKEY>INVENTORY.HTM</PAGEKEY>
       <PAGENAME>inventory.htm</PAGENAME>
       <MIMETYPE>text/html</MIMETYPE>
@@ -21,6 +43,44 @@
       <VERSION>A</VERSION>
       <LANGU>E</LANGU>
      </ATTRIBUTES>
+     <EVENT_HANDLERS>
+      <O2PAGEVHS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>INVENTORY.HTM</PAGEKEY>
+       <EVHANDLER>ONINITIALIZATION</EVHANDLER>
+       <VERSION>A</VERSION>
+       <EVHNAME>OnInitialization</EVHNAME>
+       <SOURCE>
+        <item>* event handler for data retrieval</item>
+        <item/>
+        <item>DATA(lo_inv_mgmt) = NEW zcl_taler_inv_mgmt( ).</item>
+        <item/>
+        <item>lo_inv_mgmt-&gt;sync_inventory(</item>
+        <item>  EXPORTING</item>
+        <item>    p_plant = &apos;HD00&apos;</item>
+        <item>    p_lgort = &apos;BIEL&apos; ).</item>
+        <item/>
+        <item>SELECT * INTO TABLE lt_filtered</item>
+        <item>         FROM ztlr_inventory</item>
+        <item>         ORDER BY product_id DESCENDING.</item>
+       </SOURCE>
+      </O2PAGEVHS>
+     </EVENT_HANDLERS>
+     <PARAMETERS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>INVENTORY.HTM</PAGEKEY>
+       <COMPNAME>LT_FILTERED</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>TY_TALER_INV_TAB</TYPE>
+       <ALIASNAME>lt_filtered</ALIASNAME>
+      </O2PAGPARS>
+     </PARAMETERS>
+     <TYPES>
+      <item>TYPES: ty_taler_inv_tab TYPE STANDARD TABLE OF ztlr_inventory WITH DEFAULT KEY.</item>
+     </TYPES>
     </item>
     <item>
      <ATTRIBUTES>
@@ -33,6 +93,347 @@
       <VERSION>A</VERSION>
       <LANGU>E</LANGU>
      </ATTRIBUTES>
+     <EVENT_HANDLERS>
+      <O2PAGEVHS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <EVHANDLER>ONINITIALIZATION</EVHANDLER>
+       <VERSION>A</VERSION>
+       <EVHNAME>OnInitialization</EVHNAME>
+       <SOURCE>
+        <item>* event handler for data retrieval</item>
+        <item>&quot; Fetching business name and timestamp from config table</item>
+        <item>  lo_util     = NEW zcl_taler_general( ).</item>
+        <item>  ls_last_cfg = lo_util-&gt;get_last_correct_config( ).</item>
+        <item/>
+        <item>  lv_business_name = ls_last_cfg-taler_bsn.</item>
+        <item>  lv_timestamp     = ls_last_cfg-check_timestamp.</item>
+        <item/>
+        <item>  &quot; Convert timestamp to date and time</item>
+        <item>  CONVERT TIME STAMP lv_timestamp TIME ZONE &apos;UTC&apos; INTO DATE lv_date TIME lv_time.</item>
+        <item/>
+        <item>  &quot; Extract month and map it</item>
+        <item>  lv_month_number = lv_date+4(2).</item>
+        <item/>
+        <item>  CASE lv_month_number.</item>
+        <item>    WHEN &apos;01&apos;. lv_month_name = &apos;January&apos;.</item>
+        <item>    WHEN &apos;02&apos;. lv_month_name = &apos;February&apos;.</item>
+        <item>    WHEN &apos;03&apos;. lv_month_name = &apos;March&apos;.</item>
+        <item>    WHEN &apos;04&apos;. lv_month_name = &apos;April&apos;.</item>
+        <item>    WHEN &apos;05&apos;. lv_month_name = &apos;May&apos;.</item>
+        <item>    WHEN &apos;06&apos;. lv_month_name = &apos;June&apos;.</item>
+        <item>    WHEN &apos;07&apos;. lv_month_name = &apos;July&apos;.</item>
+        <item>    WHEN &apos;08&apos;. lv_month_name = &apos;August&apos;.</item>
+        <item>    WHEN &apos;09&apos;. lv_month_name = &apos;September&apos;.</item>
+        <item>    WHEN &apos;10&apos;. lv_month_name = &apos;October&apos;.</item>
+        <item>    WHEN &apos;11&apos;. lv_month_name = &apos;November&apos;.</item>
+        <item>    WHEN &apos;12&apos;. lv_month_name = &apos;December&apos;.</item>
+        <item>    WHEN OTHERS. lv_month_name = &apos;Unknown&apos;.</item>
+        <item>  ENDCASE.</item>
+        <item/>
+        <item>  &quot; Format string using |...| (no spaces between tokens)</item>
+        <item>  lv_formatted_ts = |Last synced at { lv_time+0(2) }:{ lv_time+2(2) }:{ lv_time+4(2) }, { lv_date+6(2) } { lv_month_name } { lv_date+0(4) }|.</item>
+        <item/>
+        <item/>
+        <item/>
+        <item>&quot;Get statistics</item>
+        <item>lo_statistic = NEW zcl_taler_statistic( ).</item>
+        <item>lv_orders_json = lo_statistic-&gt;get_orders_status_json( iv_days = 365 ).</item>
+        <item>lv_tax_json = lo_statistic-&gt;get_tax_statistic_json( iv_days = 365 ).</item>
+        <item>lv_net_json = lo_statistic-&gt;get_net_statistic_json( iv_days = 365 ).</item>
+        <item>lv_units_json = lo_statistic-&gt;get_units_sold_json( iv_days = 365 ).</item>
+        <item/>
+        <item/>
+        <item/>
+       </SOURCE>
+      </O2PAGEVHS>
+      <O2PAGEVHS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <EVHANDLER>ONINPUTPROCESSING</EVHANDLER>
+       <VERSION>A</VERSION>
+       <EVHNAME>OnInputProcessing</EVHNAME>
+       <SOURCE>
+        <item>* event handler for checking and processing user input and</item>
+        <item>* for defining navigation</item>
+        <item/>
+        <item/>
+        <item>DATA: ev TYPE REF TO if_htmlb_data.</item>
+        <item/>
+        <item>ev = cl_htmlb_manager=&gt;get_event_ex( request ).</item>
+        <item/>
+        <item>IF ev IS NOT INITIAL</item>
+        <item>  AND ev-&gt;event_name = htmlb_events=&gt;button</item>
+        <item>  AND ev-&gt;event_server_name = &apos;onSyncNow&apos;.</item>
+        <item/>
+        <item>  DATA(lo_util) = NEW zcl_taler_general( ).</item>
+        <item/>
+        <item>  lo_util-&gt;sync_all( ).</item>
+        <item/>
+        <item>ENDIF.</item>
+       </SOURCE>
+      </O2PAGEVHS>
+      <O2PAGEVHS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <EVHANDLER>ONREQUEST</EVHANDLER>
+       <VERSION>A</VERSION>
+       <EVHNAME>OnRequest</EVHNAME>
+       <SOURCE>
+        <item>* the handler is called whenever a request is made for a particular page</item>
+        <item>* it is used to restore the internal data structures from the request</item>
+        <item/>
+       </SOURCE>
+      </O2PAGEVHS>
+     </EVENT_HANDLERS>
+     <PARAMETERS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>COMPLETED</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>I</TYPE>
+       <ALIASNAME>completed</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>CREATED</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>I</TYPE>
+       <ALIASNAME>created</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LO_STATISTIC</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>3</TYPTYPE>
+       <TYPE>ZCL_TALER_STATISTIC</TYPE>
+       <ALIASNAME>lo_statistic</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LO_UTIL</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>3</TYPTYPE>
+       <TYPE>ZCL_TALER_GENERAL</TYPE>
+       <ALIASNAME>lo_util</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LS_LAST_CFG</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>ZTLR_CONFIG</TYPE>
+       <ALIASNAME>ls_last_cfg</ALIASNAME>
+       <TEXT>Taler config table</TEXT>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LT_LINES</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>TY_STRING_TABLE</TYPE>
+       <ALIASNAME>lt_lines</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_BUSINESS_NAME</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>ZTLR_CONFIG-TALER_BSN</TYPE>
+       <ALIASNAME>lv_business_name</ALIASNAME>
+       <TEXT>Character 1024 Case-Sensitive</TEXT>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_DATE</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>D</TYPE>
+       <ALIASNAME>lv_date</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_FORMATTED_TS</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>STRING</TYPE>
+       <ALIASNAME>lv_formatted_ts</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_KEY</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>STRING</TYPE>
+       <ALIASNAME>lv_key</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_LINE</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>STRING</TYPE>
+       <ALIASNAME>lv_line</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_MONTH_NAME</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>STRING</TYPE>
+       <ALIASNAME>lv_month_name</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_MONTH_NUMBER</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>N</TYPE>
+       <ALIASNAME>lv_month_number</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_NET_JSON</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>STRING</TYPE>
+       <ALIASNAME>lv_net_json</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_ORDERS_JSON</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>STRING</TYPE>
+       <ALIASNAME>lv_orders_json</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_TAX_JSON</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>STRING</TYPE>
+       <ALIASNAME>lv_tax_json</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_TIME</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>T</TYPE>
+       <ALIASNAME>lv_time</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_TIMESTAMP</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>ZTLR_CONFIG-CHECK_TIMESTAMP</TYPE>
+       <ALIASNAME>lv_timestamp</ALIASNAME>
+       <TEXT>UTC Time Stamp in Short Form (YYYYMMDDhhmmss)</TEXT>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_UNITS_JSON</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>STRING</TYPE>
+       <ALIASNAME>lv_units_json</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_VAL</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>I</TYPE>
+       <ALIASNAME>lv_val</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>LV_VAL_STR</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>STRING</TYPE>
+       <ALIASNAME>lv_val_str</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>PAID</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>I</TYPE>
+       <ALIASNAME>paid</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>REFUND</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>I</TYPE>
+       <ALIASNAME>refund</ALIASNAME>
+      </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>MAIN.HTM</PAGEKEY>
+       <COMPNAME>TOTAL_ORDERS</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>I</TYPE>
+       <ALIASNAME>total_orders</ALIASNAME>
+      </O2PAGPARS>
+     </PARAMETERS>
+     <TYPES>
+      <item>TYPES: ty_string_table TYPE STANDARD TABLE OF string WITH EMPTY KEY.</item>
+     </TYPES>
     </item>
     <item>
      <ATTRIBUTES>
@@ -44,6 +445,37 @@
       <VERSION>A</VERSION>
       <LANGU>E</LANGU>
      </ATTRIBUTES>
+     <EVENT_HANDLERS>
+      <O2PAGEVHS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>NOTIFICATIONS.HTM</PAGEKEY>
+       <EVHANDLER>ONINITIALIZATION</EVHANDLER>
+       <VERSION>A</VERSION>
+       <EVHNAME>OnInitialization</EVHNAME>
+       <SOURCE>
+        <item>* event handler for data retrieval</item>
+        <item/>
+        <item>SELECT * INTO TABLE lt_filtered</item>
+        <item>         FROM ztlr_notes</item>
+        <item>         ORDER BY timestamp DESCENDING.</item>
+       </SOURCE>
+      </O2PAGEVHS>
+     </EVENT_HANDLERS>
+     <PARAMETERS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>NOTIFICATIONS.HTM</PAGEKEY>
+       <COMPNAME>LT_FILTERED</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>TY_TALER_NOTES_TAB</TYPE>
+       <ALIASNAME>lt_filtered</ALIASNAME>
+      </O2PAGPARS>
+     </PARAMETERS>
+     <TYPES>
+      <item>TYPES: ty_taler_notes_tab TYPE STANDARD TABLE OF ztlr_notes WITH DEFAULT KEY.</item>
+     </TYPES>
     </item>
     <item>
      <ATTRIBUTES>
@@ -318,6 +750,10 @@
         <item>SELECT * INTO TABLE lt_filtered</item>
         <item>         FROM ztlr_order_hstat</item>
         <item>         ORDER BY timestamp DESCENDING.</item>
+        <item/>
+        <item>SELECT * INTO TABLE lt_filtered_inv</item>
+        <item>         FROM ztlr_inv_hstat</item>
+        <item>         ORDER BY timestamp DESCENDING.</item>
        </SOURCE>
       </O2PAGEVHS>
      </EVENT_HANDLERS>
@@ -332,9 +768,20 @@
        <TYPE>TY_TALER_HSTAT_TAB</TYPE>
        <ALIASNAME>lt_filtered</ALIASNAME>
       </O2PAGPARS>
+      <O2PAGPARS>
+       <APPLNAME>Z_TALER_UI</APPLNAME>
+       <PAGEKEY>TRANSACTIONS.HTM</PAGEKEY>
+       <COMPNAME>LT_FILTERED_INV</COMPNAME>
+       <VERSION>A</VERSION>
+       <PARDECLTYP>1</PARDECLTYP>
+       <TYPTYPE>1</TYPTYPE>
+       <TYPE>TY_TALER_INV_HSTAT_TAB</TYPE>
+       <ALIASNAME>lt_filtered_inv</ALIASNAME>
+      </O2PAGPARS>
      </PARAMETERS>
      <TYPES>
-      <item>TYPES: ty_taler_hstat_tab TYPE STANDARD TABLE OF ztlr_order_hstat WITH DEFAULT KEY.</item>
+      <item>TYPES: ty_taler_hstat_tab TYPE STANDARD TABLE OF ztlr_order_hstat WITH DEFAULT KEY,</item>
+      <item>       ty_taler_inv_hstat_tab TYPE STANDARD TABLE OF ztlr_inv_hstat WITH DEFAULT KEY.</item>
      </TYPES>
     </item>
    </PAGES>
