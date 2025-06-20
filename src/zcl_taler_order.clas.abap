@@ -77,6 +77,15 @@ CLASS zcl_taler_order DEFINITION
 
     METHODS check_refunds.
 
+    METHODS check_completed_orders.
+
+    METHODS post_incoming_payment
+      IMPORTING
+        iv_billing_doc TYPE vbrk-vbeln          "billing doc (= invoice, open item)
+        iv_wiref_id    TYPE char70              "wire-transfer reference / text
+      RETURNING
+        VALUE(rt_return) TYPE bapiret2_t.       "BAPI return table
+
     METHODS: log_http_interaction
       IMPORTING
         iv_billing_doc TYPE ztlr_order_log-billing_doc
@@ -89,6 +98,7 @@ CLASS zcl_taler_order DEFINITION
 
     " DO NOT USE UNLESS UnitedResearchForever
     METHODS clear_all_taler_tables.
+
 
 
     METHODS get_billing_docs
@@ -532,7 +542,8 @@ CLASS zcl_taler_order IMPLEMENTATION.
           lv_erzet TYPE vbak-erzet,
           lv_tzone         TYPE ttzz-tzone,
           lv_sap_created_ts_conv TYPE timestamp,
-          lv_long_message TYPE string.
+          lv_long_message TYPE string,
+          lv_tax_amount TYPE mwsbp.
 
 
     " Fill and insert ZTLR_ORDER_LOG
@@ -545,16 +556,15 @@ CLASS zcl_taler_order IMPLEMENTATION.
     ls_order_log-timestamp   = lv_timestamp.
 
     " Get tax amount (sum of MWSBP from VBAP for sales order)
-    SELECT SUM( mwsbp ) INTO @DATA(lv_tax_amount)
+    SELECT SUM( mwsbp ) INTO @lv_tax_amount
       FROM vbrp
-      WHERE vbeln = @is_header-vgbel.
+      WHERE vbeln = @is_header-vbeln.
 
     IF sy-subrc <> 0 OR lv_tax_amount IS INITIAL.
       lv_tax_amount = 0.
     ENDIF.
 
     ls_order_log-tax_amount = lv_tax_amount.
-
 
     SELECT SINGLE erdat, erzet
       INTO (@lv_erdat, @lv_erzet)
@@ -655,20 +665,10 @@ CLASS zcl_taler_order IMPLEMENTATION.
     CALL METHOD process_refunds.
 
     " Check for refund being callected.
-    " TODO: Add implementation which will call the get orders/{billing_doc} and in the response body it will have one field of "refund_pending": true, if it is false than we good and payment has been refunded, we can change
-    " status to refunded. this field we need to find with regex
     CALL METHOD check_refunds.
 
-    " Check that the order has been refunded
-
-    " Add new function for updating the payment states of all orders
-
-    " TODO: Add checking for refund being completed
-
-    " TODO: Add reconciliation function
-
-    " ...
-
+    " Change status to completed if cleared
+    CALL METHOD check_completed_orders.
 
   ENDMETHOD.
 
@@ -1191,7 +1191,7 @@ CLASS zcl_taler_order IMPLEMENTATION.
         FROM ztlr_order_log
         WHERE refund = 'X'
           AND state  NOT IN ( 'canceled',
-                              'refund_completed',
+                              'refunded',
                               'refunding',
                               'completed' ).
 
@@ -1380,7 +1380,7 @@ CLASS zcl_taler_order IMPLEMENTATION.
           IF lv_pending = 'false'.
 
             UPDATE ztlr_order_log
-              SET state = 'refund_completed',
+              SET state = 'refunded',
                   taler_state = 'refunded'
               WHERE billing_doc = @ls_ref-billing_doc.
 
@@ -1472,6 +1472,7 @@ CLASS zcl_taler_order IMPLEMENTATION.
 
 
   METHOD send_refund_request_to_taler.
+
       DATA: ls_config   TYPE ztlr_config,
             lo_general  TYPE REF TO zcl_taler_general,
             lo_client   TYPE REF TO if_http_client,
@@ -1504,6 +1505,216 @@ CLASS zcl_taler_order IMPLEMENTATION.
             iv_req_url     = lv_url
             iv_on_state    = '' ).
   ENDMETHOD.
+
+  METHOD check_completed_orders.
+
+      DATA: lt_candidates TYPE STANDARD TABLE OF ztlr_order_log WITH EMPTY KEY,
+            ls_order      TYPE ztlr_order_log,
+            ls_config     TYPE ztlr_config,
+            lo_general    TYPE REF TO zcl_taler_general,
+            lv_belnr      TYPE bsad-belnr,
+            lv_msg        TYPE string.
+
+      "------------------------------------------------------------
+      " 0)  Read last good config once (for BUKRS etc.)
+      "------------------------------------------------------------
+      lo_general = NEW zcl_taler_general( ).
+      lo_general->get_last_correct_config( RECEIVING rs_config = ls_config ).
+
+      "------------------------------------------------------------
+      " 1)  Pick orders that Taler reports as *settled* but
+      "     are still only at state = 'paid' in our table
+      "------------------------------------------------------------
+      SELECT *
+        INTO TABLE @lt_candidates
+        FROM ztlr_order_log
+        WHERE taler_state = 'settled'
+          AND state       = 'paid'
+          AND refund      = ''            " skip anything under refund flow
+          AND error       = ''.           " skip errored ones – will be retried later
+
+      LOOP AT lt_candidates INTO ls_order.
+
+        "----------------------------------------------------------
+        " 2)  Was the FI open item really cleared?  -> BSAD
+        "     XBLNR (reference) carries the billing-doc number
+        "----------------------------------------------------------
+        " TODO: bukrs clearly needs to be
+        CLEAR lv_belnr.
+        SELECT SINGLE belnr
+          INTO @lv_belnr
+          FROM bsad
+          WHERE xblnr = @ls_order-billing_doc
+            AND bukrs = 'DE00'.   " company code from config
+
+        IF sy-subrc = 0.   "found → cleared!
+
+          UPDATE ztlr_order_log
+            SET state = 'completed'
+            WHERE billing_doc = @ls_order-billing_doc.
+
+          CONCATENATE
+            '{ "billing_doc":"'  ls_order-billing_doc  '",'
+            '"type":"info",'
+            '"information":"cleared in BSAD – state→completed"}'
+            INTO lv_msg.
+
+          raise_note(
+            iv_type  = 'info'
+            iv_short = |{ ls_order-billing_doc } – completed|
+            iv_long  = lv_msg ).
+
+        ENDIF.
+
+      ENDLOOP.
+
+      COMMIT WORK AND WAIT.   " flush status updates / notes
+
+  ENDMETHOD.
+
+
+  METHOD post_incoming_payment.
+  " WE REALLY NEED SOMEONE TO FIGURE OUT HOW THIS SUPPOSED TO WORK...
+
+    DATA ls_bsid TYPE bsid.
+
+    SELECT SINGLE kunnr,
+                   wrbtr,
+                   waers,
+                   gjahr,
+                   belnr
+      INTO CORRESPONDING FIELDS OF @ls_bsid
+      FROM bsid
+      WHERE xblnr = @iv_billing_doc
+        AND bukrs = 'DE00'.
+
+    IF sy-subrc <> 0.
+      rt_return = VALUE #( ( type = 'E'
+                             id = 'ZR'
+                             number = '001'
+                             message = |No open item for XBLNR { iv_billing_doc }.| ) ).
+      RETURN.
+    ENDIF.
+
+    DATA: ls_header TYPE bapiache09,
+          lt_ar     TYPE TABLE OF bapiacar09,
+          lt_gl     TYPE TABLE OF bapiacgl09,
+          lt_curr   TYPE TABLE OF bapiaccr09.
+
+    ls_header = VALUE #(
+      bus_act     = 'RFBU'
+      comp_code   = 'DE00'
+      doc_date    = sy-datum
+      pstng_date  = sy-datum
+      vatdate     = sy-datum
+      fis_period  = '06'
+      fisc_year   = ls_bsid-gjahr
+      doc_type    = 'DZ'
+      ref_doc_no  = iv_wiref_id
+      header_txt  = iv_wiref_id
+      username    = sy-uname ).
+
+    " Customer credit (implied by negative amount in currency)
+    APPEND VALUE bapiacar09(
+      itemno_acc   = '0000000001'
+      customer     = ls_bsid-kunnr
+      comp_code    = 'DE00'
+      alloc_nmbr   = iv_wiref_id
+      item_text    = iv_wiref_id
+    ) TO lt_ar.
+
+    " Bank clearing G/L account (positive value)
+    APPEND VALUE bapiacgl09(
+      itemno_acc   = '0000000002'
+      gl_account   = '0000135001'
+      comp_code    = 'DE00'
+      alloc_nmbr   = iv_wiref_id
+      item_text    = iv_wiref_id
+    ) TO lt_gl.
+
+    " Currency amounts (credit line must be negative)
+    APPEND VALUE bapiaccr09(
+      itemno_acc   = '0000000001'
+      currency_iso = ls_bsid-waers
+      amt_doccur   = - ls_bsid-wrbtr
+    ) TO lt_curr.
+
+    APPEND VALUE bapiaccr09(
+      itemno_acc   = '0000000002'
+      currency_iso = ls_bsid-waers
+      amt_doccur   =   ls_bsid-wrbtr
+    ) TO lt_curr.
+
+    DATA lv_paydoc TYPE bapiache09-obj_key.
+
+    CALL FUNCTION 'BAPI_ACC_DOCUMENT_POST'
+      EXPORTING
+        documentheader    = ls_header
+      IMPORTING
+        obj_key           = lv_paydoc
+      TABLES
+        accountreceivable = lt_ar
+        accountgl         = lt_gl
+        currencyamount    = lt_curr
+        return            = rt_return.
+
+    IF line_exists( rt_return[ type = 'E' ] ).
+      RETURN.
+    ENDIF.
+
+    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT' EXPORTING wait = 'X'.
+
+    " Clear via classic FI module
+    DATA: lt_ftpost TYPE TABLE OF ftpost,
+          ls_ftpost TYPE ftpost,
+          lt_blntab TYPE TABLE OF blntab,
+          ls_blntab TYPE blntab,
+          lt_ftclear TYPE TABLE OF ftclear,
+          lt_fttax TYPE TABLE OF fttax.
+
+    CLEAR ls_blntab.
+    ls_blntab-bukrs = 'DE00'.
+    ls_blntab-gjahr = ls_bsid-gjahr.
+    ls_blntab-belnr = lv_paydoc.
+    APPEND ls_blntab TO lt_blntab.
+
+    CLEAR ls_ftpost.
+    ls_ftpost-stype = 'K'.                      "Line item
+    ls_ftpost-count = 1.
+    ls_ftpost-fnam  = 'BKPF-BUKRS'.
+    ls_ftpost-fval  = 'DE00'.
+    APPEND ls_ftpost TO lt_ftpost.
+
+    ls_ftpost-fnam  = 'RF05A-BELNR'.
+    ls_ftpost-fval  = ls_bsid-belnr.
+    APPEND ls_ftpost TO lt_ftpost.
+
+    ls_ftpost-fnam  = 'RF05A-GJAHR'.
+    ls_ftpost-fval  = ls_bsid-gjahr.
+    APPEND ls_ftpost TO lt_ftpost.
+
+    ls_ftpost-fnam  = 'RF05A-BELNR'.
+    ls_ftpost-fval  = lv_paydoc.
+    APPEND ls_ftpost TO lt_ftpost.
+
+    ls_ftpost-fnam  = 'RF05A-GJAHR'.
+    ls_ftpost-fval  = ls_bsid-gjahr.
+    APPEND ls_ftpost TO lt_ftpost.
+
+    CALL FUNCTION 'POSTING_INTERFACE_CLEARING'
+      EXPORTING
+        i_auglv   = 'EINGZAHL'
+        i_tcode   = 'FB05'
+        i_sgfunct = 'C'
+      TABLES
+        t_ftpost  = lt_ftpost
+        t_blntab  = lt_blntab
+        t_ftclear = lt_ftclear
+        t_fttax   = lt_fttax.
+
+
+  ENDMETHOD.
+
 
 
 ENDCLASS.

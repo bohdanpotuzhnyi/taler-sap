@@ -6,8 +6,8 @@
 REPORT z_t_taler_find_refunds.
 
 UPDATE ZTLR_ORDER_LOG
-    SET state = 'paid'
-    WHERE state = 'refund_fail'.
+    SET state = 'refunded'
+    WHERE state = 'refund_completed'.
 
 TYPES: BEGIN OF ty_billing_header,
              vbeln TYPE vbrk-vbeln,   " Billing doc number
